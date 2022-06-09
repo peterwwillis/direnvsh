@@ -12,7 +12,7 @@ Load environment variables from files in parent directories into shell and run p
 
 At the end of loading the envrc files, if you have supplied any commands and arguments after the `direnvsh` options, execution will pass to that command with the environment variables set. Add `--` after any `direnvsh` options to prevent confusion with command arguments.
 
-If a file `.stopdirenvshrc` exists in a current or parent directory or the `DIRENVSH_STOP` variable is set to `1`, all parsing will stop.
+If a file `.stopdirenvsh` exists in a current or parent directory or the `DIRENVSH_STOP` variable is set to `1`, all parsing will stop.
 
 ## Modes
 
@@ -47,7 +47,7 @@ There are 3 different execution modes for `direnvsh`:
 
     Usage: ./direnvsh [OPTIONS] [--] [COMMAND ..]
     
-    Loads a .envrc file from current and parent directories into the shell.
+    Loads a .envrc file from current and parent/child directories into the shell.
     If COMMAND and any arguments are passed, they are executed.
     
     Options:
@@ -62,6 +62,7 @@ There are 3 different execution modes for `direnvsh`:
                   into the shell after all exported variables are concatenated.
                   The ENVRC is set to .envrc unless otherwise specified.
     
+      -R ORDER    Order of file processing: 'parent' (default), 'child'
       -f ENVRC    Load files named ENVRC rather than '.envrc'
       -h          This screen
       -v          Enable debug mode (DEBUG=1)
