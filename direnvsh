@@ -6,22 +6,30 @@
 DIRENVSH_VER="0.1"
 set -eu ; [ "${DEBUG:-0}" = "1" ] && set -x
 
-_rloadfiles_recurse () {
+_rloadfiles_recurse_precedence () {
     direnvsh_level=$((${direnvsh_level:--1}+1))
     if [ "${DIRENVSH_STOP:-0}" = "1" ] || [ -e "$1/.stopdirenvsh" ] ; then
         printf "%s: Stopping processing envrc files\n" "$0" 1>&2
         return
     fi
-    if [ "$3" = "parent" ] && [ ! "$1" = "/" ] ; then
-        _rloadfiles_recurse "$(dirname "$1")" "$2" "$3"
-    fi
-    _rloadfiles "$1" "$2"
+    [ ! "$3" = "parent" ] || _rloadfiles_recurse_order "$1" "$2" "$3" "$4"
+    _rloadfile "$1" "$2"
     direnvsh_level=$((direnvsh_level-1))
-    if [ "$3" = "child" ] && [ ! "$1" = "/" ] ; then
-        _rloadfiles_recurse "$(dirname "$1")" "$2" "$3"
+    [ ! "$3" = "child" ] || _rloadfiles_recurse_order "$1" "$2" "$3" "$4"
+}
+_rloadfiles_recurse_order () {
+    if [ ! "$1" = "/" ] ; then
+        if [ "$4" = "backward" ] ; then
+            _rloadfiles_recurse_precedence "$(dirname "$1")" "$2" "$3" "$4"
+        elif [ "$4" = "forward" ] ; then
+            for _dir in * ; do
+                [ -d "$_dir" ] || continue
+                _rloadfiles_recurse_precedence "$1/$_dir" "$2" "$3" "$4"
+            done
+        fi
     fi
 }
-_rloadfiles () {
+_rloadfile () {
     direnvsh_cwd="$1" direnvsh_file="$2"
     trap _cleanup_tmp EXIT
     set -a # export all variables set after here
@@ -85,22 +93,23 @@ _direnvsh_help () {
     echo "If COMMAND and any arguments are passed, they are executed."
     echo ""
     echo "Options:"
-    echo "  -S          Simple mode (default): only parse files with line-by-line KEY=VALUE entries"
-    echo "              instead of loading the file into the shell. Interpolates environment variables."
-    echo "              The ENVRC is set to .env unless otherwise specified."
+    echo "  -S            Simple mode (default): only parse files with line-by-line KEY=VALUE entries"
+    echo "                instead of loading the file into the shell. Interpolates environment variables."
+    echo "                The ENVRC is set to .env unless otherwise specified."
     echo ""
-    echo "  -D          Dynamic mode: load each file into the shell session immediately."
-    echo "              The ENVRC is set to .envrc unless otherwise specified."
+    echo "  -D            Dynamic mode: load each file into the shell session immediately."
+    echo "                The ENVRC is set to .envrc unless otherwise specified."
     echo ""
-    echo "  -E          Export mode: use a subshell to export each .envrc and only load values"
-    echo "              into the shell after all exported variables are concatenated."
-    echo "              The ENVRC is set to .envrc unless otherwise specified."
+    echo "  -E            Export mode: use a subshell to export each .envrc and only load values"
+    echo "                into the shell after all exported variables are concatenated."
+    echo "                The ENVRC is set to .envrc unless otherwise specified."
     echo ""
-    echo "  -P ORDER    Which directory's file is processed first: 'parent' (default), 'child'"
-    echo "  -f ENVRC    Load files named ENVRC rather than '.envrc'"
-    echo "  -h          This screen"
-    echo "  -v          Enable debug mode (DEBUG=1)"
-    echo "  -V          Version of direnvsh"
+    echo "  -p ORDER      Which directory's file is processed first: 'parent' (default), 'child'"
+    echo "  -d DIRECTION  Direction to walk directories for files: 'backward' (default), 'forward'"
+    echo "  -f ENVRC      Load files named ENVRC rather than '.envrc'"
+    echo "  -h            This screen"
+    echo "  -v            Enable debug mode (DEBUG=1)"
+    echo "  -V            Version of direnvsh"
     exit 1
 }
 
@@ -109,28 +118,21 @@ DIRENVSH_SIMPLE_MODE="${DIRENVSH_SIMPLE_MODE:-1}"
 DIRENVSH_DYNAMIC_MODE="${DIRENVSH_DYNAMIC_MODE:-0}"
 DIRENVSH_EXPORT_MODE="${DIRENVSH_EXPORT_MODE:-0}"
 DIRENVSH_PRECEDENCE="${DIRENVSH_PRECEDENCE:-parent}"
+DIRENVSH_DIRECTION="${DIRENVSH_DIRECTION:-backward}"
 TMPDIR="${TMPDIR:-/tmp}" # POSIX standard temp dir
 
-while getopts "SDEP:f:hvV" args ; do
+while getopts "SDEp:d:f:hvV" args ; do
     case $args in
-        S)  
-            DIRENVSH_SIMPLE_MODE=1 DIRENVSH_DYNAMIC_MODE=0 DIRENVSH_EXPORT_MODE=0 ;;
-        D)  
-            DIRENVSH_SIMPLE_MODE=0 DIRENVSH_DYNAMIC_MODE=1 DIRENVSH_EXPORT_MODE=0 ;;
-        E)  
-            DIRENVSH_SIMPLE_MODE=0 DIRENVSH_DYNAMIC_MODE=0 DIRENVSH_EXPORT_MODE=1 ;;
-        P)
-            DIRENVSH_PRECEDENCE="$OPTARG" ;;
-        f)  
-            ENVRC="$OPTARG" ;;
-        h)  
-            DIRENVSH_SHOW_HELP=1 ;;
-        v)  
-            DEBUG=1 ;;
-        V)  
-            printf "%s\n" "$DIRENVSH_VER" ; exit 0 ;;
-        *)  
-            printf "%s: Error: unknown option '%s'\n" "$0" "$args" 1>&2 ; _direnvsh_help ;;
+        S)  DIRENVSH_SIMPLE_MODE=1 DIRENVSH_DYNAMIC_MODE=0 DIRENVSH_EXPORT_MODE=0 ;;
+        D)  DIRENVSH_SIMPLE_MODE=0 DIRENVSH_DYNAMIC_MODE=1 DIRENVSH_EXPORT_MODE=0 ;;
+        E)  DIRENVSH_SIMPLE_MODE=0 DIRENVSH_DYNAMIC_MODE=0 DIRENVSH_EXPORT_MODE=1 ;;
+        p)  DIRENVSH_PRECEDENCE="$OPTARG" ;;
+        d)  DIRENVSH_DIRECTION="$OPTARG" ;;
+        f)  ENVRC="$OPTARG" ;;
+        h)  DIRENVSH_SHOW_HELP=1 ;;
+        v)  DEBUG=1 ;;
+        V)  printf "%s\n" "$DIRENVSH_VER" ; exit 0 ;;
+        *)  printf "%s: Error: unknown option '%s'\n" "$0" "$args" 1>&2 ; _direnvsh_help ;;
     esac
 done
 shift $((OPTIND-1))
@@ -146,7 +148,7 @@ if [ "${DIRENVSH_EXPORT_MODE}" = "1" ] ; then
     tmpfile="$(mktemp "$TMPDIR/direnvsh.XXXXXXXXXX")"
 fi
 
-_rloadfiles_recurse "$(pwd)" "$ENVRC" "$DIRENVSH_PRECEDENCE"
+_rloadfiles_recurse_precedence "$(pwd)" "$ENVRC" "$DIRENVSH_PRECEDENCE" "$DIRENVSH_DIRECTION"
 
 if [ "${DIRENVSH_EXPORT_MODE}" = "1" ] ; then
     . "$tmpfile"

@@ -1,3 +1,6 @@
+<!-- vim: syntax=markdown
+-->
+
 # direnvsh
 Load environment variables from files in parent directories into shell and run programs.
 
@@ -14,15 +17,25 @@ At the end of loading the envrc files, if you have supplied any commands and arg
 
 If a file `.stopdirenvsh` exists in a current or parent directory or the `DIRENVSH_STOP` variable is set to `1`, all parsing will stop.
 
+The `-P` option changes the precedence of which directory's files are processed first.
+
 ## Modes
 
 There are 3 different execution modes for `direnvsh`:
 
-1. **Simple mode (default):** Parse files with `KEY=VALUE` entries on each new line. The default filename searched for is `.env`. These are not interpreted by a shell script, they are literals only (do not enclose the value with quote symbols unless you want those quotes to stay in the value). Any environment variables (`$FOO`, `${FOO}`) are automatically interpolated. Lines starting with '#' are ignored. 
+### 1. Simple mode
 
-2. **Dynamic mode:** Each file is assumed to be a shell script and is sourced into the current shell session immediately. The default filename searched for is `.envrc`. Keep in mind all the syntax of normal shell scripts, like quoting values with spaces. This will also execute any commands in the file, so be very careful with this mode.
+Default mode. Parses files with `KEY=VALUE` entries on each new line. The default filename searched for is `.env`. These are not interpreted by a shell script, they are literals only (do not enclose the value with quote symbols unless you want those quotes to stay in the value). Any environment variables (`$FOO`, `${FOO}`) are automatically interpolated. Lines starting with '#' are ignored. 
 
-3. **Export mode:** Like **Dynamic mode**, except each file is loaded in a separate subshell, its values 'export'ed, and all 'export' variables are loaded into the current shell at the end. This makes it less likely that a badly-formatted file can crash your current shell session, but it will use temporary files and more resources and be slower.
+### 2. Dynamic mode
+
+Each file is assumed to be a shell script and is sourced into the current shell session immediately. The default filename searched for is `.envrc`. Keep in mind all the syntax of normal shell scripts, like quoting values with spaces. This will also execute any commands in the file, so be very careful with this mode.
+
+### 3. Export mode
+
+Like **Dynamic mode**, except each file is loaded in a separate subshell, its values 'export'ed, and all 'export' variables are loaded into the current shell at the end. This makes it less likely that a badly-formatted file can crash your current shell session, but it will use temporary files and more resources and be slower.
+
+**NOTE:** Because **Export mode** doesn't interpolate variables each time it exports each file, you will not be able to interpolate variables from different files. Interpolation only works for variables within each file, and with variables that were passed to `direnvsh` from the parent process environment.
 
 
 ## Environment Variables
@@ -39,8 +52,6 @@ There are 3 different execution modes for `direnvsh`:
 | `direnvsh_cwd` | *envrc directory* | During envrc processing, the name of the directory the file is in. |
 | `direnvsh_level` | 0 | During envrc processing, the level of the parent directory of the file. |
 
-<!-- vim: syntax=markdown
--->
 ---
 
 ## Help screen
@@ -51,19 +62,20 @@ There are 3 different execution modes for `direnvsh`:
     If COMMAND and any arguments are passed, they are executed.
     
     Options:
-      -S          Simple mode (default): only parse files with line-by-line KEY=VALUE entries
-                  instead of loading the file into the shell. Interpolates environment variables.
-                  The ENVRC is set to .env unless otherwise specified.
+      -S            Simple mode (default): only parse files with line-by-line KEY=VALUE entries
+                    instead of loading the file into the shell. Interpolates environment variables.
+                    The ENVRC is set to .env unless otherwise specified.
     
-      -D          Dynamic mode: load each file into the shell session immediately.
-                  The ENVRC is set to .envrc unless otherwise specified.
+      -D            Dynamic mode: load each file into the shell session immediately.
+                    The ENVRC is set to .envrc unless otherwise specified.
     
-      -E          Export mode: use a subshell to export each .envrc and only load values
-                  into the shell after all exported variables are concatenated.
-                  The ENVRC is set to .envrc unless otherwise specified.
+      -E            Export mode: use a subshell to export each .envrc and only load values
+                    into the shell after all exported variables are concatenated.
+                    The ENVRC is set to .envrc unless otherwise specified.
     
-      -R ORDER    Order of file processing: 'parent' (default), 'child'
-      -f ENVRC    Load files named ENVRC rather than '.envrc'
-      -h          This screen
-      -v          Enable debug mode (DEBUG=1)
-      -V          Version of direnvsh
+      -p ORDER      Which directory's file is processed first: 'parent' (default), 'child'
+      -d DIRECTION  Direction to walk directories for files: 'backward' (default), 'forward'
+      -f ENVRC      Load files named ENVRC rather than '.envrc'
+      -h            This screen
+      -v            Enable debug mode (DEBUG=1)
+      -V            Version of direnvsh
