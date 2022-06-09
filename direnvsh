@@ -126,4 +126,4 @@ shift $((OPTIND-1))
 _rloadfiles "$ENVRC"
 
 # If there were command-line options left, execute them
-if [ $# -gt 0 ] ; then exec "$@" ; fi
+[ $# -lt 1 ] || exec "$@"
