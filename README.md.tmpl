@@ -1,6 +1,9 @@
 # direnvsh
 Load environment variables from files in parent directories into shell and run programs.
 
+## Requirements
+1. A POSIX shell.
+
 ## Usage
 
 1. Download the file [direnvsh](./direnvsh).
