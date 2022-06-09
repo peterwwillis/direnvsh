@@ -19,7 +19,7 @@ If you pass commands & arguments to `direnvsh`, they will be executed with `exec
 | `DIRENVSH_EXPORT_MODE` | 0 | If '1', enable 'export mode' |
 | `ENVRC` | .envrc | The name of the file to load into the shell |
 | `TMPDIR` | /tmp | The directory to create temporary files in if you use 'export mode' |
-| `direnvsh_cwd` | *<envrc directory>* | The name of the directory the current envrc file is in |
+| `direnvsh_cwd` | *envrc directory* | The name of the directory the current envrc file is in |
 | `direnvsh_level` | 0 | The level of parent directory of the current envrc file |
 
 ---
