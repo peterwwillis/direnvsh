@@ -2,10 +2,10 @@
 -->
 
 # direnvsh
-Load environment variables from files in parent directories into shell and run programs.
+direnvsh makes it easy to load (and override) environment variables in your shell, using default files in parent/child directories, and then optionally run programs.
 
 ## Requirements
-1. A POSIX shell.
+- A POSIX shell
 
 ## Usage
 
@@ -17,23 +17,39 @@ At the end of loading env files, if you have supplied any commands and arguments
 
 If a file `.stopdirenvsh` exists in a current or parent directory or the `DIRENVSH_STOP` variable is set to `1`, all parsing will stop.
 
+## Example
+
+```
+$ cd git/direnv/test/simple-mode/1/2/3/
+$ echo 'THIS=THAT $BAR VAR' > .env
+$ echo 'BAR=BAZ thing $FOO' > ../.env
+$ echo 'FOO=BAR' > ../../.env
+$ ../../../../../direnvsh sh -c 'echo $THIS'
+../../../../../direnvsh: Stopping processing envrc files
+../../../../../direnvsh: Loading envrc '/home/user/git/direnvsh/test/simple-mode/1/.env'
+../../../../../direnvsh: Loading envrc '/home/user/git/direnvsh/test/simple-mode/1/2/.env'
+../../../../../direnvsh: Loading envrc '/home/user/git/direnvsh/test/simple-mode/1/2/3/.env'
+THAT BAZ thing BAR VAR
+```
+
 ## Modes
 
 There are 3 different execution modes for `direnvsh`:
 
 ### 1. Simple mode
 
-Default mode. Parses files with `KEY=VALUE` entries on each new line. The default filename searched for is `.env`. These are not interpreted by a shell script, they are literals only (do not enclose the value with quote symbols unless you want those quotes to stay in the value). Any environment variables (`$FOO`, `${FOO}`) are automatically interpolated. Lines starting with '#' are ignored. 
+Default mode. Looks for files called `.env`. Parses files with `KEY=VALUE` entries on each new line. These lines must be literals, e.g. **they are not treated like a shell script** (do not enclose the value with quote symbols unless you want those quotes to stay in the value). Any environment variables (`$FOO`, `${FOO}`) are automatically interpolated. Lines starting with '#' are ignored. 
 
 ### 2. Immediate mode
 
-Each file is assumed to be a shell script and is sourced into the current shell session immediately. The default filename searched for is `.envrc`. Keep in mind all the syntax of normal shell scripts, like quoting values with spaces. This will also execute any commands in the file, so be very careful with this mode.
+Looks for files called `.envrc`. **These files are assumed to be shell scripts**; you can make them `KEY="VALUE"` lines, or do crazier stuff. Each file is sourced into the current shell session immediately. Keep in mind all the syntax of normal shell scripts, e.g. escaping special characters. Since this is just loading a shell script, you can put shell code in there too.
 
 ### 3. Export mode
 
-Like **Immediate mode**, except each file is loaded in a separate subshell, its values 'export'ed, and all 'export' variables are loaded into the current shell at the end. This makes it less likely that a badly-formatted file can crash your current shell session, but it will use temporary files and more resources and be slower.
+Like **Immediate mode**, except each file is loaded in a separate subshell, its values 'export'ed, and all 'export' variables are loaded into the current shell session at the end. This makes it less likely that a badly-formatted file can crash your current shell session, but it will use temporary files and more resources and be slower.
 
-**NOTE:** Because **Export mode** doesn't interpolate variables each time it exports each file, you will not be able to interpolate variables from different files. Interpolation only works for variables within each file, and with variables that were passed to `direnvsh` from the parent process environment.
+**NOTE:** **Export mode** doesn't interpolate variables between files. Interpolation only works for variables within each file, and with variables that were passed to `direnvsh` from the parent process environment.
+
 
 ## File Search Direction
 
@@ -45,6 +61,7 @@ The direction (`-D`) option determines whether the script looks 'backward' (in p
 The precedence (`-P`) option determines whether the parent directory's files are processed before the current directory's files, or vice versa. If the order is 'far', parent directory files are processed first. If the order is 'close', the reverse happens.
 
 If you don't specify the precedence, it defaults to 'far' if the *Direction* was 'backward', and it defaults to 'close' if the *Direction* was 'forward'. This allows files deeper in a filesystem hierarchy to override.
+
 
 ## Environment Variables
 
@@ -61,6 +78,7 @@ If you don't specify the precedence, it defaults to 'far' if the *Direction* was
 | `TMPDIR` | /tmp | The directory in which to create temporary files if you use Export mode. |
 | `direnvsh_cwd` | *envrc directory* | During envrc processing, the name of the directory the file is in. |
 | `direnvsh_level` | 0 | During envrc processing, the level of the parent directory of the file. |
+
 
 ---
 

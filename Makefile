@@ -8,7 +8,7 @@ test: test-simple-mode test-dynamic-mode test-export-mode
 test-simple-mode:
 	@OPWD="`pwd`"; cd test/simple-mode/1/2/3 ; \
 	RESULT="`env -i ../../../../../direnvsh sh -c 'echo $$THIS'`" ; \
-	if [ ! "$$RESULT" = "THAT BAZ thing here VAR" ] ; then \
+	if [ ! "$$RESULT" = "THAT BAZ thing BAR VAR" ] ; then \
 		echo "ERROR: simple mode failed" ; exit 1 ; \
 	fi
 

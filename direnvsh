@@ -48,7 +48,7 @@ _readkv () {
     while IFS='=' read -r key val; do
         # Skip comments
         [ "${key##\#*}" ] || continue
-        printf "%s: Found k=v '%s=%s'\n" "$0" "$key" "$val" 1>&2
+        #printf "%s: Found k=v '%s=%s'\n" "$0" "$key" "$val" 1>&2
         set +e
         # Replace text '${FOO}' with value of '$FOO'
         _replaceval_ind "$key" "$val" '^.*${[a-zA-Z0-9_]\+}' '^.*${\([a-zA-Z0-9_]\+\)}.*$'
