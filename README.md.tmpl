@@ -24,15 +24,3 @@ If you pass commands & arguments to `direnvsh`, they will be executed with `exec
 
 ---
 
-    Usage: ./direnvsh [OPTIONS] [--] [COMMAND ..]
-    
-    Loads a .envrc file from current and parent directories into the shell.
-    If COMMAND and any arguments are passed, they are executed.
-    
-    Options:
-      -e          Export mode: use a subshell to export each .envrc and only load values
-                  into the shell after all variables are concatenated.
-      -f ENVRC    Load files named ENVRC rather than '.envrc'
-      -h          This screen
-      -v          Enable debug mode (DEBUG=1)
-      -V          Version of direnvsh

@@ -1,0 +1,88 @@
+#!/usr/bin/env sh
+# direnvsh - Load .envrc files into shell from parent directories
+# Copyright (C) 2022  Peter Willis
+
+set -eu ; [ "${DEBUG:-0}" = "1" ] && set -x
+TMPDIR="${TMPDIR:-/tmp}" # POSIX standard temp dir
+ENVRC="${ENVRC:-.envrc}"
+DIRENVSH_VER="0.1"
+
+_rloadfiles () {
+    file="$1"
+    trap _cleanup_tmp EXIT
+    if [ "${DIRENVSH_EXPORT_MODE}" = "1" ] ; then
+        tmpfile="$(mktemp "$TMPDIR/direnvsh.XXXXXXXXXX")"
+    fi
+    direnvsh_cwd="$(pwd)"
+    set -a # export all variables set after here
+    direnvsh_level=0
+    while : ; do
+        if [ -e "$direnvsh_cwd/.stopdirenvshrc" ] || [ "${DIRENVSH_STOP:-0}" = "1" ] ; then
+            printf "%s: Stopping processing envrc files\n" "$0" 1>&2
+            break
+        fi
+        if [ -e "$direnvsh_cwd/$file" ] ; then
+            printf "%s: Loading envrc '%s'\n" "$0" "$direnvsh_cwd/$file" 1>&2
+            if [ "${DIRENVSH_EXPORT_MODE}" = "1" ] ; then
+                env -i sh -c "unset SHLVL PWD; set -a; . \"$direnvsh_cwd/$file\"; export -p" >> "$tmpfile"
+            else
+                . "$direnvsh_cwd/$file"
+            fi
+        fi
+        direnvsh_level=$((direnvsh_level+1))
+        direnvsh_cwd="$(dirname "$direnvsh_cwd")"
+        [ "$direnvsh_cwd" = "/" ] && break
+    done
+    if [ "${DIRENVSH_EXPORT_MODE}" = "1" ] ; then
+        . "$tmpfile"
+        rm -f "$tmpfile"
+    fi
+}
+_cleanup_tmp () {
+    if [ "${NO_CLEANUP_TMP_ON_ERROR:-0}" = "1" ] ; then
+        printf "%s: Error detected; not cleaning up '%s'\n" "$0" "${tmpfile:-}" 1>&2
+    else
+        if [ "${NO_CLEANUP_TMP:-0}" = "1" ] ; then
+            printf "%s: Not cleaning up '%s'\n" "$0" "${tmpfile:-}" 1>&2
+        elif [ -n "${tmpfile:-}" ] ; then
+            rm -f "$tmpfile"
+        fi
+    fi
+}
+_direnvsh_help () {
+    echo "Usage: $0 [OPTIONS] [--] [COMMAND ..]"
+    echo ""
+    echo "Loads a .envrc file from current and parent directories into the shell."
+    echo "If COMMAND and any arguments are passed, they are executed."
+    echo ""
+    echo "Options:"
+    echo "  -e          Export mode: use a subshell to export each .envrc and only load values"
+    echo "              into the shell after all variables are concatenated."
+    echo "  -f ENVRC    Load files named ENVRC rather than '.envrc'"
+    echo "  -h          This screen"
+    echo "  -v          Enable debug mode (DEBUG=1)"
+    echo "  -V          Version of direnvsh"
+    exit 1
+}
+
+DIRENVSH_SHOW_HELP=0
+DIRENVSH_EXPORT_MODE="${DIRENVSH_EXPORT_MODE:-0}"
+while getopts "ef:hvV" args ; do
+    case $args in
+        e)  DIRENVSH_EXPORT_MODE=1 ;;
+        f)  ENVRC="$OPTARG" ;;
+        h)  DIRENVSH_SHOW_HELP=1 ;;
+        v)  DEBUG=1 ;;
+        V)  printf "%s\n" "$DIRENVSH_VER" ; exit 0 ;;
+        *)  printf "%s: Error: unknown option '%s'\n" "$0" "$args" 1>&2 ; _direnvsh_help ;;
+    esac
+done
+shift $(($OPTIND-1))
+
+[ "${DIRENVSH_SHOW_HELP}" = "1" ] && _direnvsh_help
+[ "${DEBUG:-0}" = "1" ] && set -x
+
+_rloadfiles "$ENVRC"
+
+# If there were command-line options left, execute them
+if [ $# -gt 0 ] ; then exec "$@" ; fi
