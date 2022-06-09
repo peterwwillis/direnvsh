@@ -12,19 +12,19 @@ _rloadfiles_recurse_precedence () {
         printf "%s: Stopping processing envrc files\n" "$0" 1>&2
         return
     fi
-    [ ! "$3" = "parent" ] || _rloadfiles_recurse_order "$1" "$2" "$3" "$4"
+    [ ! "$3" = "far" ] || _rloadfiles_recurse_order "$1" "$2" "$3" "$4"
     _rloadfile "$1" "$2"
     direnvsh_level=$((direnvsh_level-1))
-    [ ! "$3" = "child" ] || _rloadfiles_recurse_order "$1" "$2" "$3" "$4"
+    [ ! "$3" = "close" ] || _rloadfiles_recurse_order "$1" "$2" "$3" "$4"
 }
 _rloadfiles_recurse_order () {
     if [ ! "$1" = "/" ] ; then
         if [ "$4" = "backward" ] ; then
             _rloadfiles_recurse_precedence "$(dirname "$1")" "$2" "$3" "$4"
         elif [ "$4" = "forward" ] ; then
-            for _dir in * ; do
+            for _dir in "$1"/* ; do
                 [ -d "$_dir" ] || continue
-                _rloadfiles_recurse_precedence "$1/$_dir" "$2" "$3" "$4"
+                _rloadfiles_recurse_precedence "$_dir" "$2" "$3" "$4"
             done
         fi
     fi
@@ -37,7 +37,7 @@ _rloadfile () {
         printf "%s: Loading envrc '%s'\n" "$0" "$direnvsh_cwd/$direnvsh_file" 1>&2
         if [ "${DIRENVSH_EXPORT_MODE}" = "1" ] ; then
             env -i sh -c "unset SHLVL PWD; set -a; . \"$direnvsh_cwd/$direnvsh_file\"; export -p" >> "$tmpfile"
-        elif [ "${DIRENVSH_DYNAMIC_MODE}" = "1" ] ; then
+        elif [ "${DIRENVSH_IMMEDIATE_MODE}" = "1" ] ; then
             . "$direnvsh_cwd/$direnvsh_file"
         elif [ "${DIRENVSH_SIMPLE_MODE}" = "1" ] ; then
             _readkv < "$direnvsh_cwd/$direnvsh_file"
@@ -97,16 +97,17 @@ _direnvsh_help () {
     echo "                instead of loading the file into the shell. Interpolates environment variables."
     echo "                The ENVRC is set to .env unless otherwise specified."
     echo ""
-    echo "  -D            Dynamic mode: load each file into the shell session immediately."
+    echo "  -I            Immediate mode: load each file into the shell session immediately."
     echo "                The ENVRC is set to .envrc unless otherwise specified."
     echo ""
     echo "  -E            Export mode: use a subshell to export each .envrc and only load values"
     echo "                into the shell after all exported variables are concatenated."
     echo "                The ENVRC is set to .envrc unless otherwise specified."
     echo ""
-    echo "  -p ORDER      Which directory's file is processed first: 'parent' (default), 'child'"
-    echo "  -d DIRECTION  Direction to walk directories for files: 'backward' (default), 'forward'"
-    echo "  -f ENVRC      Load files named ENVRC rather than '.envrc'"
+    echo "  -D DIRECTION  Direction to walk directories for files: 'backward' (default), 'forward'"
+    echo "  -P ORDER      Precedence of file loading: 'far' (default), 'close'"
+    echo ""
+    echo "  -F ENVRC      Load files named ENVRC rather than '.envrc'"
     echo "  -h            This screen"
     echo "  -v            Enable debug mode (DEBUG=1)"
     echo "  -V            Version of direnvsh"
@@ -115,20 +116,19 @@ _direnvsh_help () {
 
 DIRENVSH_SHOW_HELP=0
 DIRENVSH_SIMPLE_MODE="${DIRENVSH_SIMPLE_MODE:-1}"
-DIRENVSH_DYNAMIC_MODE="${DIRENVSH_DYNAMIC_MODE:-0}"
+DIRENVSH_IMMEDIATE_MODE="${DIRENVSH_IMMEDIATE_MODE:-0}"
 DIRENVSH_EXPORT_MODE="${DIRENVSH_EXPORT_MODE:-0}"
-DIRENVSH_PRECEDENCE="${DIRENVSH_PRECEDENCE:-parent}"
-DIRENVSH_DIRECTION="${DIRENVSH_DIRECTION:-backward}"
+# Don't set DIRENVSH_DIRECTION default until after DIRENVSH_PRECEDENCE has been passed
 TMPDIR="${TMPDIR:-/tmp}" # POSIX standard temp dir
 
-while getopts "SDEp:d:f:hvV" args ; do
+while getopts "SIED:P:F:hvV" args ; do
     case $args in
-        S)  DIRENVSH_SIMPLE_MODE=1 DIRENVSH_DYNAMIC_MODE=0 DIRENVSH_EXPORT_MODE=0 ;;
-        D)  DIRENVSH_SIMPLE_MODE=0 DIRENVSH_DYNAMIC_MODE=1 DIRENVSH_EXPORT_MODE=0 ;;
-        E)  DIRENVSH_SIMPLE_MODE=0 DIRENVSH_DYNAMIC_MODE=0 DIRENVSH_EXPORT_MODE=1 ;;
-        p)  DIRENVSH_PRECEDENCE="$OPTARG" ;;
-        d)  DIRENVSH_DIRECTION="$OPTARG" ;;
-        f)  ENVRC="$OPTARG" ;;
+        S)  DIRENVSH_SIMPLE_MODE=1 DIRENVSH_IMMEDIATE_MODE=0 DIRENVSH_EXPORT_MODE=0 ;;
+        I)  DIRENVSH_SIMPLE_MODE=0 DIRENVSH_IMMEDIATE_MODE=1 DIRENVSH_EXPORT_MODE=0 ;;
+        E)  DIRENVSH_SIMPLE_MODE=0 DIRENVSH_IMMEDIATE_MODE=0 DIRENVSH_EXPORT_MODE=1 ;;
+        D)  DIRENVSH_DIRECTION="$OPTARG" ;;
+        P)  DIRENVSH_PRECEDENCE="$OPTARG" ;;
+        F)  ENVRC="$OPTARG" ;;
         h)  DIRENVSH_SHOW_HELP=1 ;;
         v)  DEBUG=1 ;;
         V)  printf "%s\n" "$DIRENVSH_VER" ; exit 0 ;;
@@ -141,8 +141,12 @@ shift $((OPTIND-1))
 [ "${DEBUG:-0}" = "1" ] && set -x
 
 [ "${DIRENVSH_SIMPLE_MODE}" = "1" ] && ENVRC="${ENVRC:-.env}"
-[ "${DIRENVSH_DYNAMIC_MODE}" = "1" ] && ENVRC="${ENVRC:-.envrc}"
+[ "${DIRENVSH_IMMEDIATE_MODE}" = "1" ] && ENVRC="${ENVRC:-.envrc}"
 [ "${DIRENVSH_EXPORT_MODE}" = "1" ] && ENVRC="${ENVRC:-.envrc}"
+
+DIRENVSH_DIRECTION="${DIRENVSH_DIRECTION:-backward}"
+[ "${DIRENVSH_DIRECTION}" = "backward" ] && DIRENVSH_PRECEDENCE="${DIRENVSH_PRECEDENCE:-far}"
+[ "${DIRENVSH_DIRECTION}" = "forward" ] && DIRENVSH_PRECEDENCE="${DIRENVSH_PRECEDENCE:-close}"
 
 if [ "${DIRENVSH_EXPORT_MODE}" = "1" ] ; then
     tmpfile="$(mktemp "$TMPDIR/direnvsh.XXXXXXXXXX")"

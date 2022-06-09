@@ -14,7 +14,7 @@ test-simple-mode:
 
 test-dynamic-mode:
 	@OPWD="`pwd`"; cd test/dynamic-mode/1/2/3 ; \
-	RESULT="`env -i ../../../../../direnvsh -D sh -c 'echo $$THIS'`" ; \
+	RESULT="`env -i ../../../../../direnvsh -I sh -c 'echo $$THIS'`" ; \
 	if [ ! "$$RESULT" = "THAT BAZ thing here VAR" ] ; then \
 		echo "ERROR: dynamic mode failed" ; exit 1 ; \
 	fi
