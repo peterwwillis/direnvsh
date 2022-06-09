@@ -9,7 +9,7 @@ set -eu ; [ "${DEBUG:-0}" = "1" ] && set -x
 _rloadfiles_recurse_precedence () {
     direnvsh_level=$((${direnvsh_level:--1}+1))
     if [ "${DIRENVSH_STOP:-0}" = "1" ] || [ -e "$1/.stopdirenvsh" ] ; then
-        printf "%s: Stopping processing envrc files\n" "$0" 1>&2
+        printf "%s: Found '%s', ending processing\n" "$0" "$1/.stopdirenvsh" 1>&2
         return
     fi
     [ ! "$3" = "far" ] || _rloadfiles_recurse_order "$1" "$2" "$3" "$4"

@@ -25,7 +25,7 @@ $ echo 'THIS=THAT $BAR VAR' > .env
 $ echo 'BAR=BAZ thing $FOO' > ../.env
 $ echo 'FOO=BAR' > ../../.env
 $ ../../../../../direnvsh sh -c 'echo $THIS'
-../../../../../direnvsh: Stopping processing envrc files
+../../../../../direnvsh: Found '/home/user/git/direnvsh/test/.stopdirenvsh', ending processing
 ../../../../../direnvsh: Loading envrc '/home/user/git/direnvsh/test/simple-mode/1/.env'
 ../../../../../direnvsh: Loading envrc '/home/user/git/direnvsh/test/simple-mode/1/2/.env'
 ../../../../../direnvsh: Loading envrc '/home/user/git/direnvsh/test/simple-mode/1/2/3/.env'
